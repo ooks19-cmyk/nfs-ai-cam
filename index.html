@@ -14,14 +14,13 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { overflow: hidden; touch-action: none; overscroll-behavior: none; }
         #reader { width: 100% !important; height: 100% !important; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden; background-color: #000; }
         #reader video { width: 100% !important; height: 100% !important; object-fit: cover !important; }
         .shutter-flash { animation: flash 0.3s ease-out; }
         @keyframes flash { 0% { background-color: white; opacity: 1; } 100% { background-color: transparent; opacity: 0; } }
     </style>
 </head>
-<body class="bg-gray-100 h-screen w-screen flex flex-col font-sans overflow-hidden">
+<body class="bg-gray-100 min-h-screen w-full flex flex-col font-sans">
 
     <!-- 상단 헤더 -->
     <header class="bg-slate-800 text-white h-14 shrink-0 shadow-md relative z-10 flex justify-between items-center px-4">
@@ -32,10 +31,10 @@
         </button>
     </header>
 
-    <main class="flex-1 min-h-0 w-full flex flex-col items-center justify-center relative p-2 md:p-4">
+    <main class="flex-1 w-full flex flex-col items-center justify-start relative p-2 md:p-4 overflow-y-auto">
         
         <!-- ================= [STEP 1] 바코드 스캔 ================= -->
-        <div id="step1-scanner" class="w-full max-w-md h-full bg-white rounded-xl shadow-lg flex flex-col overflow-hidden transition-all duration-300 mx-auto">
+        <div id="step1-scanner" class="w-full max-w-md bg-white rounded-xl shadow-lg flex flex-col transition-all duration-300 mx-auto my-2 md:my-4">
             <div class="bg-blue-600 p-2 text-white flex justify-between items-center shrink-0">
                 <div class="font-bold whitespace-nowrap text-sm"><i class="fas fa-barcode mr-2"></i>스캔 단계</div>
                 <button id="skip-scan-btn" onclick="skipScannerAndEnterManually()" class="bg-blue-800 hover:bg-blue-900 text-blue-100 text-xs py-1.5 px-3 rounded-full border border-blue-500 shadow-sm transition flex items-center">
@@ -57,7 +56,7 @@
         </div>
 
         <!-- ================= [STEP 2] 사진 촬영 ================= -->
-        <div id="step2-camera" class="w-full max-w-md h-full bg-white rounded-xl shadow-lg flex flex-col hidden overflow-hidden transition-all duration-300 mx-auto">
+        <div id="step2-camera" class="w-full max-w-md bg-white rounded-xl shadow-lg flex flex-col hidden transition-all duration-300 mx-auto my-2 md:my-4">
             <div class="bg-green-600 p-2 text-white text-center shadow-md z-10 shrink-0">
                 <div class="flex justify-between items-center mb-1 px-2">
                     <span class="text-xs opacity-90">현재 바코드</span>
@@ -77,8 +76,8 @@
                 </div>
             </div>
 
-            <div class="flex-1 min-h-0 bg-gray-900 flex items-center justify-center p-2 relative" onclick="manualRefocus(this)">
-                <div class="relative flex items-center justify-center overflow-hidden rounded-lg shadow-inner bg-black" style="aspect-ratio: 3/4; max-width: 100%; max-height: 100%;">
+            <div class="w-full bg-gray-900 flex items-center justify-center p-2 relative" onclick="manualRefocus(this)">
+                <div class="relative flex items-center justify-center overflow-hidden rounded-lg shadow-inner bg-black w-full" style="aspect-ratio: 3/2;">
                     <video id="photo-video" class="w-full h-full object-cover" autoplay playsinline muted></video>
                     <div id="flash-effect" class="absolute inset-0 pointer-events-none opacity-0 rounded-lg"></div>
                     <div id="thumbnail-container" class="absolute bottom-2 right-2 border-2 border-white rounded shadow-lg hidden bg-white">
@@ -282,8 +281,8 @@
             
             const videoElement = document.getElementById('photo-video');
             let constraints = (cameraDevices.length > 0 && cameraDevices[currentDeviceIndex].deviceId) 
-                ? { video: { deviceId: { exact: cameraDevices[currentDeviceIndex].deviceId }, width: { ideal: 1080 }, height: { ideal: 1440 } } }
-                : { video: { facingMode: "environment", width: { ideal: 1080 }, height: { ideal: 1440 } } };
+                ? { video: { deviceId: { exact: cameraDevices[currentDeviceIndex].deviceId }, width: { ideal: 1440 }, height: { ideal: 960 } } }
+                : { video: { facingMode: "environment", width: { ideal: 1440 }, height: { ideal: 960 } } };
             
             navigator.mediaDevices.getUserMedia(constraints)
             .then(stream => { 
@@ -326,7 +325,7 @@
             
             const vw = video.videoWidth;
             const vh = video.videoHeight;
-            const targetAspect = 3 / 4; 
+            const targetAspect = 3 / 2; 
             
             let sx = 0, sy = 0, sWidth = vw, sHeight = vh;
 
