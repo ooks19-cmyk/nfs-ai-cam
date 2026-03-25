@@ -15,15 +15,19 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { overflow: hidden; touch-action: none; overscroll-behavior: none; }
-        #reader { width: 100% !important; height: 100% !important; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden; background-color: #000; }
-        #reader video { width: 100% !important; height: 100% !important; object-fit: cover !important; }
+        
+        /* ★★★ [업데이트] 스캐너 분신술 버그 해결! 비디오와 캔버스를 완벽하게 겹칩니다! ★★★ */
+        #reader { width: 100% !important; height: 100% !important; position: relative; overflow: hidden; background-color: #000; display: block; }
+        #reader video, #reader canvas { position: absolute !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; object-fit: cover !important; }
+        #reader video { z-index: 1; }
+        #reader canvas { z-index: 2; pointer-events: none; } /* 캔버스가 터치 방해 못하게 설정 */
+        
         .shutter-flash { animation: flash 0.3s ease-out; }
         @keyframes flash { 0% { background-color: white; opacity: 1; } 100% { background-color: transparent; opacity: 0; } }
     </style>
 </head>
 <body class="bg-gray-100 h-screen w-screen flex flex-col font-sans overflow-hidden">
 
-    <!-- 상단 헤더, ver 260325  -->
     <header class="bg-slate-800 text-white h-14 shrink-0 shadow-md relative z-10 flex justify-between items-center px-4">
         <div class="w-8"></div>
         <h1 class="text-lg font-bold text-center"><i class="fas fa-boxes mr-2"></i>NFS_DG 스마트 카메라</h1>
@@ -34,7 +38,6 @@
 
     <main class="flex-1 min-h-0 w-full flex flex-col items-center justify-center relative p-2 md:p-4">
         
-        <!-- ================= [STEP 1] 바코드 스캔 ================= -->
         <div id="step1-scanner" class="w-full max-w-md h-full bg-white rounded-xl shadow-lg flex flex-col overflow-hidden transition-all duration-300 mx-auto">
             <div class="bg-blue-600 p-2 text-white flex justify-between items-center shrink-0">
                 <div class="font-bold whitespace-nowrap text-sm"><i class="fas fa-barcode mr-2"></i>스캔 단계</div>
@@ -48,7 +51,6 @@
             </div>
             
             <div class="p-3 flex-1 flex flex-col justify-center gap-2 bg-gray-50 border-t border-gray-200">
-                <!-- AI 분석 상태를 보여줄 텍스트 창 -->
                 <p id="scanner-status" class="text-blue-600 mb-1 font-bold text-center text-sm transition-colors duration-300">카메라를 준비하는 중입니다...</p>
                 <button id="start-scan-btn" onclick="startBarcodeScanner()" class="hidden bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg w-full transition duration-300 shadow-md text-sm">
                     <i class="fas fa-play mr-2"></i> 스캐너 수동 켜기
@@ -56,7 +58,6 @@
             </div>
         </div>
 
-        <!-- ================= [STEP 2] 사진 촬영 ================= -->
         <div id="step2-camera" class="w-full max-w-md h-full bg-white rounded-xl shadow-lg flex flex-col hidden overflow-hidden transition-all duration-300 mx-auto">
             <div class="bg-green-600 p-2 text-white text-center shadow-md z-10 shrink-0">
                 <div class="flex justify-between items-center mb-1 px-2">
@@ -112,8 +113,6 @@
         
         let cameraDevices = []; 
         let currentDeviceIndex = 0; 
-        
-        // ★★★ [미쓰리 AI 변수] 다수결 필터링을 위한 메모리 버퍼 ★★★
         let scanBuffer = [];
 
         async function loadCameraDevices() {
@@ -190,7 +189,6 @@
             if (cameraDevices.length === 0) await loadCameraDevices();
             if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
             
-            // 다수결 버퍼 초기화
             scanBuffer = [];
             
             const config = { 
@@ -214,21 +212,13 @@
             });
         }
 
-        // ★★★ [미쓰리 로컬 AI] 오타 자동 복원 및 다수결 필터링 알고리즘 ★★★
         function onBarcodeScanned(decodedText) {
             let rawText = decodedText.trim().toUpperCase();
-            
-            // 1. 별표(*)나 밑줄 등 불필요한 노이즈 강제 삭제
             let cleanedText = rawText.replace(/[*_]/g, ''); 
-            
-            // 2. 바코드 맨 끝의 "숫자 또는 숫자로 헷갈리는 영어" 덩어리만 기가 막히게 발라내기!
-            // 예: "202G-D-12O4S" 가 읽혔다면 -> 끝부분 "12O4S" 만 추출
             let match = cleanedText.match(/([0-9OILSZB]+)$/);
             
-            // 추출할 숫자가 아예 안 보이면 패스! (쓰레기값 방어)
             if (!match) return; 
 
-            // 3. 렌즈의 광학적 오타(OCR 에러)를 진짜 숫자로 100% 교정!
             let dirtyNumbers = match[1];
             let pureNumbers = dirtyNumbers
                 .replace(/[O]/g, '0')
@@ -237,28 +227,23 @@
                 .replace(/[S]/g, '5')
                 .replace(/[B]/g, '8');
 
-            // 4. 강제로 우리만의 포맷 껍데기를 씌움
             let finalBarcode = "2026-D-" + pureNumbers;
 
-            // 5. 다수결 AI 발동! (Ensemble Voting)
             scanBuffer.push(finalBarcode);
-            if (scanBuffer.length > 10) scanBuffer.shift(); // 최근 10번 읽은 것만 기억
+            if (scanBuffer.length > 10) scanBuffer.shift(); 
             
-            // 버퍼 안에서 똑같은 값이 몇 번이나 중복되었는지 확인
             let count = scanBuffer.filter(v => v === finalBarcode).length;
 
-            // 만약 3번 이상 똑같은 값으로 읽혔다? -> 우연이 아닌 "확실한 진짜 값"으로 인정!
             if (count >= 3) {
                 currentBarcodeText = finalBarcode; 
                 photoCounter = 1;
-                scanBuffer = []; // 통과했으니 메모리 비움
+                scanBuffer = []; 
                 try { navigator.vibrate(200); } catch(e){} 
                 
                 if (isScannerActive) {
                     html5QrCode.stop().then(() => { isScannerActive = false; html5QrCode.clear(); switchToCameraMode(); }).catch(() => { switchToCameraMode(); });
                 } else { switchToCameraMode(); }
             } else {
-                // 아직 3번 확신이 안 섰다면 상태창에 분석 중이라고 띄움!
                 document.getElementById('scanner-status').innerText = `[AI 교정 및 검증중...] 🔍`;
             }
         }
@@ -368,380 +353,7 @@
             document.getElementById('thumbnail-container').classList.add('hidden');
             document.getElementById('scanner-status').innerText = "카메라를 켜고 바코드를 비춰주세요.";
             
-            scanBuffer = []; // 버퍼 찌꺼기 청소!
-            currentBarcodeText = ""; photoCounter = 1; isScannerActive = false;
-            
-            setTimeout(() => { startBarcodeScanner(); }, 300);
-        }
-    </script>
-</body>
-</html><!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NFS_DG 스마트 카메라</title>
-    
-    <!-- ★★★ [미쓰리 철통보안] 오프라인 PWA 명함 (절대 삭제 안됨!) ★★★ -->
-    <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#1e293b">
-    <link rel="apple-touch-icon" href="./logo.png">
-    <link rel="icon" href="./logo.png" type="image/png">
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        /* 화면 스크롤 절대 금지! 바운스 효과 원천 차단 */
-        body { overflow: hidden; touch-action: none; overscroll-behavior: none; }
-        
-        /* 스캐너 엔진이 맘대로 크기를 키우지 못하도록 완벽 통제 */
-        #reader { width: 100% !important; height: 100% !important; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden; background-color: #000; }
-        #reader video { width: 100% !important; height: 100% !important; object-fit: cover !important; }
-        
-        .shutter-flash { animation: flash 0.3s ease-out; }
-        @keyframes flash { 0% { background-color: white; opacity: 1; } 100% { background-color: transparent; opacity: 0; } }
-    </style>
-</head>
-<body class="bg-gray-100 h-screen w-screen flex flex-col font-sans overflow-hidden">
-
-    <!-- 상단 헤더 (높이 고정) -->
-    <header class="bg-slate-800 text-white h-14 shrink-0 shadow-md relative z-10 flex justify-between items-center px-4">
-        <div class="w-8"></div>
-        <h1 class="text-lg font-bold text-center"><i class="fas fa-boxes mr-2"></i>NFS_DG 스마트 카메라</h1>
-        <button onclick="toggleCamera()" class="w-8 h-8 flex items-center justify-center bg-slate-700 rounded-full hover:bg-slate-600 transition shadow" title="렌즈 순환">
-            <i class="fas fa-sync-alt"></i>
-        </button>
-    </header>
-
-    <!-- 메인 컨텐츠 영역 -->
-    <main class="flex-1 min-h-0 w-full flex flex-col items-center justify-center relative p-2 md:p-4">
-        
-        <!-- ================= [STEP 1] 바코드 스캔 ================= -->
-        <div id="step1-scanner" class="w-full max-w-md h-full bg-white rounded-xl shadow-lg flex flex-col overflow-hidden transition-all duration-300 mx-auto">
-            <!-- 상단 바 -->
-            <div class="bg-blue-600 p-2 text-white flex justify-between items-center shrink-0">
-                <div class="font-bold whitespace-nowrap text-sm"><i class="fas fa-barcode mr-2"></i>스캔 단계</div>
-                <button id="skip-scan-btn" onclick="skipScannerAndEnterManually()" class="bg-blue-800 hover:bg-blue-900 text-blue-100 text-xs py-1.5 px-3 rounded-full border border-blue-500 shadow-sm transition flex items-center">
-                    <i class="fas fa-forward mr-1.5"></i> 스킵 (수동입력)
-                </button>
-            </div>
-            
-            <!-- 스캔 화면 50vh (전체 화면의 50%) 고정 -->
-            <div class="w-full shrink-0 bg-black relative flex items-center justify-center overflow-hidden" style="height: 50vh;" onclick="manualRefocus(this)">
-                <div id="reader" class="w-full h-full"></div>
-            </div>
-            
-            <!-- 하단 바 -->
-            <div class="p-3 flex-1 flex flex-col justify-center gap-2 bg-gray-50 border-t border-gray-200">
-                <p id="scanner-status" class="text-gray-600 mb-1 font-medium text-center text-xs transition-colors duration-300">카메라를 준비하는 중입니다...</p>
-                <!-- 자동 실행 실패 시에만 뜨는 버튼 -->
-                <button id="start-scan-btn" onclick="startBarcodeScanner()" class="hidden bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg w-full transition duration-300 shadow-md text-sm">
-                    <i class="fas fa-play mr-2"></i> 스캐너 수동 켜기
-                </button>
-            </div>
-        </div>
-
-        <!-- ================= [STEP 2] 사진 촬영 ================= -->
-        <div id="step2-camera" class="w-full max-w-md h-full bg-white rounded-xl shadow-lg flex flex-col hidden overflow-hidden transition-all duration-300 mx-auto">
-            <!-- 상단 바 -->
-            <div class="bg-green-600 p-2 text-white text-center shadow-md z-10 shrink-0">
-                <div class="flex justify-between items-center mb-1 px-2">
-                    <span class="text-xs opacity-90">현재 바코드</span>
-                    <span class="text-[10px] text-green-200">터치하여 수정</span>
-                </div>
-                <div class="flex flex-col items-center gap-1.5">
-                    <div class="flex items-center justify-between bg-green-700 rounded-lg px-2 py-1 border border-green-500 focus-within:border-white transition-all w-[90%] max-w-[16rem]">
-                        <label for="current-barcode-input" class="cursor-pointer shrink-0"><i class="fas fa-pen text-green-400 mr-2 text-sm"></i></label>
-                        <!-- 거대 숫자 패드(Numeric) 고정! -->
-                        <input type="text" id="current-barcode-input" inputmode="numeric" pattern="[0-9]*" class="bg-transparent text-xl font-mono font-bold tracking-wider text-center text-white outline-none w-full" value="123456" oninput="updateBarcodeFromInput()">
-                        <button onclick="clearBarcodeInput()" class="shrink-0 text-green-300 hover:text-white transition-colors ml-2 p-1 focus:outline-none" title="전체 지우기">
-                            <i class="fas fa-times-circle text-lg"></i>
-                        </button>
-                    </div>
-                    <button onclick="addPrefixText('2026-D-')" class="bg-green-800 hover:bg-green-900 text-green-100 text-[10px] py-1 px-3 rounded-full border border-green-500 shadow-sm transition flex items-center">
-                        <i class="fas fa-keyboard mr-1.5"></i> '2026-D-' 빠른 입력
-                    </button>
-                </div>
-            </div>
-
-            <!-- 촬영 화면 영역 3:4 비율 완벽 고정! -->
-            <div class="flex-1 min-h-0 bg-gray-900 flex items-center justify-center p-2 relative" onclick="manualRefocus(this)">
-                <div class="relative flex items-center justify-center overflow-hidden rounded-lg shadow-inner bg-black" style="aspect-ratio: 3/4; max-width: 100%; max-height: 100%;">
-                    <video id="photo-video" class="w-full h-full object-cover" autoplay playsinline muted></video>
-                    <div id="flash-effect" class="absolute inset-0 pointer-events-none opacity-0 rounded-lg"></div>
-                    
-                    <div id="thumbnail-container" class="absolute bottom-2 right-2 border-2 border-white rounded shadow-lg hidden bg-white">
-                        <img id="last-photo-thumb" class="w-12 h-12 object-cover" />
-                        <div id="photo-count-badge" class="absolute -top-2 -left-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">1</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 하단 셔터 바 -->
-            <div class="p-3 shrink-0 flex flex-col gap-2 bg-gray-50 border-t border-gray-200">
-                <p class="text-center text-xs text-gray-500 mb-1">저장 파일명: <span class="font-bold text-gray-800" id="preview-filename">바코드_001.jpg</span></p>
-                <button onclick="takePhoto()" class="bg-red-500 hover:bg-red-600 text-white font-bold rounded-full w-16 h-16 mx-auto flex items-center justify-center transition duration-300 shadow-xl border-4 border-red-200">
-                    <i class="fas fa-camera text-2xl"></i>
-                </button>
-                <button onclick="resetToScanner()" class="mt-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2.5 px-6 rounded-lg w-full transition duration-300 text-sm">
-                    <i class="fas fa-undo mr-2"></i> 다른 바코드 스캔 (초기화)
-                </button>
-            </div>
-        </div>
-        <canvas id="capture-canvas" class="hidden"></canvas>
-    </main>
-
-    <script>
-        // ★★★ [미쓰리 철통보안] 오프라인 서비스워커(sw.js) 등록 ★★★
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => { 
-                navigator.serviceWorker.register('./sw.js').catch(err => console.error("SW 에러:", err)); 
-            });
-        }
-
-        // 앱 켜지자마자 0.3초 뒤 스캐너 자동 ON!
-        window.addEventListener('load', () => {
-            setTimeout(() => { startBarcodeScanner(); }, 300);
-        });
-
-        let html5QrCode = null; let currentBarcodeText = ""; let photoCounter = 1; 
-        let cameraStream = null; let isScannerActive = false;
-        
-        let cameraDevices = []; 
-        let currentDeviceIndex = 0; 
-
-        async function loadCameraDevices() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({video: true});
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                cameraDevices = devices.filter(d => d.kind === 'videoinput');
-                stream.getTracks().forEach(track => track.stop());
-                
-                if(cameraDevices.length > 0) {
-                    const savedCameraId = localStorage.getItem('nfs_dg_preferred_camera');
-                    let bestIndex = -1;
-                    if (savedCameraId) bestIndex = cameraDevices.findIndex(d => d.deviceId === savedCameraId);
-                    if(bestIndex === -1) bestIndex = 0;
-                    currentDeviceIndex = bestIndex;
-                }
-            } catch (e) { console.error("렌즈 목록 로드 실패:", e); }
-        }
-
-        // ★★★ [미쓰리 핵심 조치] 줌(Zoom) 기능 완전 삭제 및 1.0배율 강제 고정! ★★★
-        function enhanceCameraFeatures(videoElement) {
-            if (!videoElement || !videoElement.srcObject) return;
-            try {
-                const track = videoElement.srcObject.getVideoTracks()[0];
-                const capabilities = track.getCapabilities();
-                let advancedConstraints = {};
-                
-                // 1. 오토포커스는 유지 (초점은 맞아야 하니까요!)
-                if (capabilities.focusMode && capabilities.focusMode.includes("continuous")) {
-                    advancedConstraints.focusMode = "continuous";
-                }
-                
-                // 2. 줌(Zoom)이 지원된다면 무조건 최하 배율(1.0x)로 강제 고정! 절대 당기지 못하게 함
-                if (capabilities.zoom) {
-                    advancedConstraints.zoom = capabilities.zoom.min || 1.0;
-                }
-                
-                track.applyConstraints({ advanced: [advancedConstraints] }).catch(e=>console.log(e));
-            } catch(e) { console.log(e); }
-        }
-
-        function manualRefocus(containerElement) {
-            const videoElement = containerElement.querySelector('video');
-            if(videoElement) {
-                containerElement.style.opacity = '0.7';
-                setTimeout(() => containerElement.style.opacity = '1', 150);
-                enhanceCameraFeatures(videoElement);
-            }
-        }
-
-        async function toggleCamera() {
-            const btn = document.querySelector('button[title="렌즈 순환"]');
-            if(btn.classList.contains('pointer-events-none')) return;
-            btn.classList.add('opacity-50', 'pointer-events-none');
-            btn.querySelector('i').classList.add('fa-spin');
-            
-            if (cameraDevices.length > 1) {
-                currentDeviceIndex = (currentDeviceIndex + 1) % cameraDevices.length;
-                localStorage.setItem('nfs_dg_preferred_camera', cameraDevices[currentDeviceIndex].deviceId);
-            }
-            
-            let currentLensName = cameraDevices[currentDeviceIndex] ? cameraDevices[currentDeviceIndex].label : "다른 렌즈";
-            const step1 = document.getElementById('step1-scanner');
-            const step2 = document.getElementById('step2-camera');
-
-            try {
-                if (!step1.classList.contains('hidden') && html5QrCode && isScannerActive) {
-                    document.getElementById('scanner-status').innerText = `[렌즈 저장됨: ${currentDeviceIndex}번] ${currentLensName}`;
-                    await html5QrCode.stop(); html5QrCode.clear(); isScannerActive = false;
-                    setTimeout(() => { startBarcodeScanner(); btn.classList.remove('opacity-50', 'pointer-events-none'); btn.querySelector('i').classList.remove('fa-spin'); }, 500);
-                } else if (!step2.classList.contains('hidden') && cameraStream) {
-                    cameraStream.getTracks().forEach(track => track.stop()); cameraStream = null;
-                    setTimeout(() => { switchToCameraMode(); btn.classList.remove('opacity-50', 'pointer-events-none'); btn.querySelector('i').classList.remove('fa-spin'); }, 500);
-                } else {
-                    btn.classList.remove('opacity-50', 'pointer-events-none'); btn.querySelector('i').classList.remove('fa-spin');
-                }
-            } catch(err) { console.error(err); btn.classList.remove('opacity-50', 'pointer-events-none'); btn.querySelector('i').classList.remove('fa-spin'); }
-        }
-
-        async function startBarcodeScanner() {
-            document.getElementById('start-scan-btn').classList.add('hidden');
-            document.getElementById('scanner-status').innerText = "렌즈를 준비하는 중...";
-            document.getElementById('scanner-status').classList.remove('text-red-500', 'font-bold');
-            
-            if (cameraDevices.length === 0) await loadCameraDevices();
-            if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
-            
-            // ★★★ [미쓰리 업데이트] 스캐너 엔진이 화면을 임의로 확대(크롭)하지 못하도록 aspectRatio 삭제! ★★★
-            const config = { 
-                fps: 30, 
-                qrbox: { width: 250, height: 120 }, 
-                // aspectRatio: 1.5, <- 이 녀석이 억지로 화면을 자르고 확대하던 주범이라 삭제했습니다!
-                disableFlip: false, 
-                useBarCodeDetectorIfSupported: true,
-                formatsToSupport: [Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39, Html5QrcodeSupportedFormats.CODE_93, Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.ITF]
-            };
-            
-            let cameraConfig = (cameraDevices.length > 0 && cameraDevices[currentDeviceIndex].deviceId) ? cameraDevices[currentDeviceIndex].deviceId : { facingMode: "environment" };
-            
-            html5QrCode.start(cameraConfig, config, onBarcodeScanned, undefined)
-            .then(() => { 
-                isScannerActive = true; 
-                setTimeout(() => {
-                    enhanceCameraFeatures(document.querySelector('#reader video'));
-                    document.getElementById('scanner-status').innerText = `[${currentDeviceIndex}번 렌즈] 흐리면 화면(바코드) 터치!`;
-                }, 800);
-            })
-            .catch((err) => { 
-                document.getElementById('start-scan-btn').classList.remove('hidden'); 
-                document.getElementById('scanner-status').innerText = "오류 발생! 버튼을 눌러 스캐너를 켜주세요.";
-            });
-        }
-
-        function onBarcodeScanned(decodedText) {
-            let cleanedText = decodedText.trim();
-            if (cleanedText.startsWith('*') && cleanedText.endsWith('*') && cleanedText.length > 2) cleanedText = cleanedText.slice(1, -1); 
-            
-            let finalBarcode = cleanedText;
-            if (/^\d+$/.test(cleanedText)) finalBarcode = "2026-D-" + cleanedText;
-
-            currentBarcodeText = finalBarcode; photoCounter = 1;
-            try { navigator.vibrate(200); } catch(e){} 
-            
-            if (isScannerActive) {
-                html5QrCode.stop().then(() => { isScannerActive = false; html5QrCode.clear(); switchToCameraMode(); }).catch(() => { switchToCameraMode(); });
-            } else { switchToCameraMode(); }
-        }
-
-        function skipScannerAndEnterManually() {
-            if (isScannerActive && html5QrCode) {
-                html5QrCode.stop().then(() => { isScannerActive = false; html5QrCode.clear(); proceedToManualEntry(); }).catch(() => { proceedToManualEntry(); });
-            } else { proceedToManualEntry(); }
-        }
-
-        function proceedToManualEntry() {
-            currentBarcodeText = "미입력"; photoCounter = 1; switchToCameraMode();
-            setTimeout(() => { const inputEl = document.getElementById('current-barcode-input'); inputEl.focus(); inputEl.select(); }, 500);
-        }
-
-        function switchToCameraMode() {
-            document.getElementById('step1-scanner').classList.add('hidden');
-            document.getElementById('step2-camera').classList.remove('hidden');
-            document.getElementById('current-barcode-input').value = currentBarcodeText;
-            updatePreviewFilename();
-            
-            const videoElement = document.getElementById('photo-video');
-            let constraints = (cameraDevices.length > 0 && cameraDevices[currentDeviceIndex].deviceId) 
-                ? { video: { deviceId: { exact: cameraDevices[currentDeviceIndex].deviceId }, width: { ideal: 1080 }, height: { ideal: 1440 } } }
-                : { video: { facingMode: "environment", width: { ideal: 1080 }, height: { ideal: 1440 } } };
-            
-            navigator.mediaDevices.getUserMedia(constraints)
-            .then(stream => { 
-                cameraStream = stream; 
-                videoElement.srcObject = stream; 
-                videoElement.onloadedmetadata = () => { enhanceCameraFeatures(videoElement); };
-            })
-            .catch(err => { alert("카메라 오류: " + err); resetToScanner(); });
-        }
-
-        function updateBarcodeFromInput() {
-            const inputVal = document.getElementById('current-barcode-input').value.trim();
-            currentBarcodeText = inputVal ? inputVal : "미입력";
-            updatePreviewFilename();
-        }
-        
-        function clearBarcodeInput() {
-            const inputEl = document.getElementById('current-barcode-input');
-            inputEl.value = ""; 
-            currentBarcodeText = "미입력"; 
-            updatePreviewFilename(); 
-            inputEl.focus(); 
-        }
-        
-        function addPrefixText(text) {
-            const inputEl = document.getElementById('current-barcode-input');
-            if (inputEl.value === "미입력" || inputEl.value === "") inputEl.value = text;
-            else if (!inputEl.value.startsWith(text)) inputEl.value = text + inputEl.value;
-            updateBarcodeFromInput(); inputEl.focus();
-        }
-
-        function updatePreviewFilename() {
-            document.getElementById('preview-filename').innerText = `${currentBarcodeText}_${String(photoCounter).padStart(3, '0')}.jpg`;
-        }
-
-        function takePhoto() {
-            if (!cameraStream) return;
-            const video = document.getElementById('photo-video');
-            const canvas = document.getElementById('capture-canvas');
-            
-            const vw = video.videoWidth;
-            const vh = video.videoHeight;
-            const targetAspect = 3 / 4; 
-            
-            let sx = 0, sy = 0, sWidth = vw, sHeight = vh;
-
-            if (vw / vh > targetAspect) {
-                sWidth = vh * targetAspect;
-                sx = (vw - sWidth) / 2;
-            } else {
-                sHeight = vw / targetAspect;
-                sy = (vh - sHeight) / 2;
-            }
-
-            canvas.width = sWidth;
-            canvas.height = sHeight;
-            const ctx = canvas.getContext('2d'); 
-            ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-
-            const flash = document.getElementById('flash-effect');
-            flash.classList.remove('shutter-flash'); void flash.offsetWidth; flash.classList.add('shutter-flash');
-
-            document.getElementById('thumbnail-container').classList.remove('hidden');
-            document.getElementById('last-photo-thumb').src = dataUrl;
-            document.getElementById('photo-count-badge').innerText = photoCounter;
-
-            const fileName = `${currentBarcodeText}_${String(photoCounter).padStart(3, '0')}.jpg`;
-            downloadImage(dataUrl, fileName);
-            photoCounter++; updatePreviewFilename();
-        }
-
-        function downloadImage(dataUrl, filename) {
-            const link = document.createElement('a'); link.href = dataUrl; link.download = filename;
-            document.body.appendChild(link); link.click(); document.body.removeChild(link);
-        }
-
-        function resetToScanner() {
-            if (cameraStream) { cameraStream.getTracks().forEach(track => track.stop()); cameraStream = null; }
-            document.getElementById('step2-camera').classList.add('hidden');
-            document.getElementById('step1-scanner').classList.remove('hidden');
-            document.getElementById('thumbnail-container').classList.add('hidden');
-            document.getElementById('scanner-status').innerText = "카메라를 준비하는 중입니다...";
-            document.getElementById('scanner-status').classList.remove('text-red-500', 'font-bold');
+            scanBuffer = []; 
             currentBarcodeText = ""; photoCounter = 1; isScannerActive = false;
             
             setTimeout(() => { startBarcodeScanner(); }, 300);
