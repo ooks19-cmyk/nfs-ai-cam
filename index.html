@@ -16,11 +16,11 @@
     <style>
         body { overflow: hidden; touch-action: none; overscroll-behavior: none; }
         
-        /* ★★★ [업데이트] 스캐너 분신술 버그 해결! 비디오와 캔버스를 완벽하게 겹칩니다! ★★★ */
+        /* 스캐너 비디오와 캔버스 완벽 겹침 처리 */
         #reader { width: 100% !important; height: 100% !important; position: relative; overflow: hidden; background-color: #000; display: block; }
         #reader video, #reader canvas { position: absolute !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; object-fit: cover !important; }
         #reader video { z-index: 1; }
-        #reader canvas { z-index: 2; pointer-events: none; } /* 캔버스가 터치 방해 못하게 설정 */
+        #reader canvas { z-index: 2; pointer-events: none; } 
         
         .shutter-flash { animation: flash 0.3s ease-out; }
         @keyframes flash { 0% { background-color: white; opacity: 1; } 100% { background-color: transparent; opacity: 0; } }
@@ -351,7 +351,7 @@
             document.getElementById('step2-camera').classList.add('hidden');
             document.getElementById('step1-scanner').classList.remove('hidden');
             document.getElementById('thumbnail-container').classList.add('hidden');
-            document.getElementById('scanner-status').innerText = "카메라를 켜고 바코드를 비춰주세요.";
+            document.getElementById('scanner-status').innerText = "카메라를 준비하는 중입니다...";
             
             scanBuffer = []; 
             currentBarcodeText = ""; photoCounter = 1; isScannerActive = false;
