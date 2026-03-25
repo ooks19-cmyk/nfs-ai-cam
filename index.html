@@ -14,6 +14,7 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        body { touch-action: none; overscroll-behavior: none; }
         #reader { width: 100% !important; height: 100% !important; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden; background-color: #000; }
         #reader video { width: 100% !important; height: 100% !important; object-fit: cover !important; }
         .shutter-flash { animation: flash 0.3s ease-out; }
@@ -35,7 +36,7 @@
         
         <!-- ================= [STEP 1] 바코드 스캔 ================= -->
         <div id="step1-scanner" class="w-full max-w-md bg-white rounded-xl shadow-lg flex flex-col transition-all duration-300 mx-auto my-2 md:my-4">
-            <div class="bg-blue-600 p-2 text-white flex justify-between items-center shrink-0">
+            <div class="bg-blue-600 p-2 text-white flex justify-between items-center shrink-0 rounded-t-xl">
                 <div class="font-bold whitespace-nowrap text-sm"><i class="fas fa-barcode mr-2"></i>스캔 단계</div>
                 <button id="skip-scan-btn" onclick="skipScannerAndEnterManually()" class="bg-blue-800 hover:bg-blue-900 text-blue-100 text-xs py-1.5 px-3 rounded-full border border-blue-500 shadow-sm transition flex items-center">
                     <i class="fas fa-forward mr-1.5"></i> 스킵 (수동입력)
@@ -52,7 +53,7 @@
                 <div id="reader" class="w-full h-full"></div>
             </div>
             
-            <div class="p-3 flex-1 flex flex-col justify-center gap-2 bg-gray-50 border-t border-gray-200">
+            <div class="p-3 flex flex-col justify-center gap-2 bg-gray-50 border-t border-gray-200 rounded-b-xl">
                 <!-- AI 분석 상태를 보여줄 텍스트 창 -->
                 <p id="scanner-status" class="text-blue-600 mb-1 font-bold text-center text-sm transition-colors duration-300">카메라를 준비하는 중입니다...</p>
                 <button id="start-scan-btn" onclick="startBarcodeScanner()" class="hidden bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg w-full transition duration-300 shadow-md text-sm">
@@ -63,7 +64,7 @@
 
         <!-- ================= [STEP 2] 사진 촬영 ================= -->
         <div id="step2-camera" class="w-full max-w-md bg-white rounded-xl shadow-lg flex flex-col hidden transition-all duration-300 mx-auto my-2 md:my-4">
-            <div class="bg-green-600 p-2 text-white text-center shadow-md z-10 shrink-0">
+            <div class="bg-green-600 p-2 text-white text-center shadow-md z-10 shrink-0 rounded-t-xl">
                 <div class="flex justify-between items-center mb-1 px-2">
                     <span class="text-xs opacity-90">현재 바코드</span>
                     <span class="text-[10px] text-green-200">터치하여 수정</span>
@@ -71,7 +72,7 @@
                 <div class="flex flex-col items-center gap-1.5">
                     <div class="flex items-center justify-between bg-green-700 rounded-lg px-2 py-1 border border-green-500 focus-within:border-white transition-all w-[90%] max-w-[16rem]">
                         <label for="current-barcode-input" class="cursor-pointer shrink-0"><i class="fas fa-pen text-green-400 mr-2 text-sm"></i></label>
-                        <input type="text" id="current-barcode-input" inputmode="numeric" pattern="[0-9]*" class="bg-transparent text-xl font-mono font-bold tracking-wider text-center text-white outline-none w-full" value="123456" oninput="updateBarcodeFromInput()">
+                        <input type="text" id="current-barcode-input" inputmode="text" class="bg-transparent text-xl font-mono font-bold tracking-wider text-center text-white outline-none w-full" value="123456" oninput="updateBarcodeFromInput()">
                         <button onclick="clearBarcodeInput()" class="shrink-0 text-green-300 hover:text-white transition-colors ml-2 p-1 focus:outline-none" title="전체 지우기">
                             <i class="fas fa-times-circle text-lg"></i>
                         </button>
@@ -83,6 +84,7 @@
             </div>
 
             <div class="w-full bg-gray-900 flex items-center justify-center p-2 relative" onclick="manualRefocus(this)">
+                <!-- 3:2 가로형 뷰포트 -->
                 <div class="relative flex items-center justify-center overflow-hidden rounded-lg shadow-inner bg-black w-full" style="aspect-ratio: 3/2;">
                     <video id="photo-video" class="w-full h-full object-cover" autoplay playsinline muted></video>
                     <div id="flash-effect" class="absolute inset-0 pointer-events-none opacity-0 rounded-lg"></div>
@@ -93,8 +95,11 @@
                 </div>
             </div>
 
-            <div class="p-3 shrink-0 flex flex-col gap-2 bg-gray-50 border-t border-gray-200">
-                <p class="text-center text-xs text-gray-500 mb-1">저장 파일명: <span class="font-bold text-gray-800" id="preview-filename">바코드_001.jpg</span></p>
+            <div class="p-3 shrink-0 flex flex-col gap-2 bg-gray-50 border-t border-gray-200 rounded-b-xl">
+                <!-- 파일명 미리보기에 6자리 랜덤 키 표시 -->
+                <p class="text-center text-[11px] text-gray-500 mb-1 break-all px-2">
+                    저장 파일명: <span class="font-bold text-gray-800 inline-block" id="preview-filename">바코드_001_A1B2C3.jpg</span>
+                </p>
                 <button onclick="takePhoto()" class="bg-red-500 hover:bg-red-600 text-white font-bold rounded-full w-16 h-16 mx-auto flex items-center justify-center transition duration-300 shadow-xl border-4 border-red-200">
                     <i class="fas fa-camera text-2xl"></i>
                 </button>
@@ -107,11 +112,30 @@
     </main>
 
     <script>
+        // 6자리 랜덤 키 생성 함수 (알파벳 대문자 + 숫자)
+        function generateRandomKey() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = '';
+            for (let i = 0; i < 6; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        let currentPrefix = "2026-D-"; 
+        let html5QrCode = null; let currentBarcodeText = ""; let photoCounter = 1; 
+        let currentRandomKey = generateRandomKey(); // 미리 부여해두기
+        let cameraStream = null; let isScannerActive = false;
+        
+        let cameraDevices = []; 
+        let currentDeviceIndex = 0; 
+        let scanBuffer = [];
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(err => console.error(err)); });
         }
+        
         window.addEventListener('load', () => { 
-            // 저장된 접두어 불러오기
             const savedPrefix = localStorage.getItem('nfs_dg_prefix');
             if (savedPrefix !== null) {
                 currentPrefix = savedPrefix;
@@ -120,16 +144,6 @@
             }
             setTimeout(() => { startBarcodeScanner(); }, 300); 
         });
-
-        let currentPrefix = "2026-D-"; // 커스텀 가능한 기본 접두어 변수
-        let html5QrCode = null; let currentBarcodeText = ""; let photoCounter = 1; 
-        let cameraStream = null; let isScannerActive = false;
-        
-        let cameraDevices = []; 
-        let currentDeviceIndex = 0; 
-        
-        // ★★★ [미쓰리 AI 변수] 다수결 필터링을 위한 메모리 버퍼 ★★★
-        let scanBuffer = [];
 
         async function loadCameraDevices() {
             try {
@@ -205,7 +219,6 @@
             if (cameraDevices.length === 0) await loadCameraDevices();
             if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
             
-            // 다수결 버퍼 초기화
             scanBuffer = [];
             
             const config = { 
@@ -229,21 +242,13 @@
             });
         }
 
-        // ★★★ [미쓰리 로컬 AI] 오타 자동 복원 및 다수결 필터링 알고리즘 ★★★
         function onBarcodeScanned(decodedText) {
             let rawText = decodedText.trim().toUpperCase();
-            
-            // 1. 별표(*)나 밑줄 등 불필요한 노이즈 강제 삭제
             let cleanedText = rawText.replace(/[*_]/g, ''); 
             
-            // 2. 바코드 맨 끝의 "숫자 또는 숫자로 헷갈리는 영어" 덩어리만 기가 막히게 발라내기!
-            // 예: "202G-D-12O4S" 가 읽혔다면 -> 끝부분 "12O4S" 만 추출
             let match = cleanedText.match(/([0-9OILSZB]+)$/);
-            
-            // 추출할 숫자가 아예 안 보이면 패스! (쓰레기값 방어)
             if (!match) return; 
 
-            // 3. 렌즈의 광학적 오타(OCR 에러)를 진짜 숫자로 100% 교정!
             let dirtyNumbers = match[1];
             let pureNumbers = dirtyNumbers
                 .replace(/[O]/g, '0')
@@ -252,28 +257,24 @@
                 .replace(/[S]/g, '5')
                 .replace(/[B]/g, '8');
 
-            // 4. 강제로 우리만의 포맷 껍데기를 씌움 (커스텀 접두어 반영!)
             let finalBarcode = currentPrefix + pureNumbers;
 
-            // 5. 다수결 AI 발동! (Ensemble Voting)
             scanBuffer.push(finalBarcode);
-            if (scanBuffer.length > 10) scanBuffer.shift(); // 최근 10번 읽은 것만 기억
+            if (scanBuffer.length > 10) scanBuffer.shift(); 
             
-            // 버퍼 안에서 똑같은 값이 몇 번이나 중복되었는지 확인
             let count = scanBuffer.filter(v => v === finalBarcode).length;
 
-            // 만약 3번 이상 똑같은 값으로 읽혔다? -> 우연이 아닌 "확실한 진짜 값"으로 인정!
             if (count >= 3) {
                 currentBarcodeText = finalBarcode; 
                 photoCounter = 1;
-                scanBuffer = []; // 통과했으니 메모리 비움
+                currentRandomKey = generateRandomKey(); // 새 바코드 읽었을 때 난수 초기화!
+                scanBuffer = []; 
                 try { navigator.vibrate(200); } catch(e){} 
                 
                 if (isScannerActive) {
                     html5QrCode.stop().then(() => { isScannerActive = false; html5QrCode.clear(); switchToCameraMode(); }).catch(() => { switchToCameraMode(); });
                 } else { switchToCameraMode(); }
             } else {
-                // 아직 3번 확신이 안 섰다면 상태창에 분석 중이라고 띄움!
                 document.getElementById('scanner-status').innerText = `[AI 교정 및 검증중...] 🔍`;
             }
         }
@@ -285,7 +286,10 @@
         }
 
         function proceedToManualEntry() {
-            currentBarcodeText = "미입력"; photoCounter = 1; switchToCameraMode();
+            currentBarcodeText = "미입력"; 
+            photoCounter = 1; 
+            currentRandomKey = generateRandomKey(); // 수동입력 전환시 난수 초기화!
+            switchToCameraMode();
             setTimeout(() => { const inputEl = document.getElementById('current-barcode-input'); inputEl.focus(); inputEl.select(); }, 500);
         }
 
@@ -319,19 +323,19 @@
             const inputEl = document.getElementById('current-barcode-input');
             inputEl.value = ""; 
             currentBarcodeText = "미입력"; 
+            photoCounter = 1; 
+            currentRandomKey = generateRandomKey(); // 텍스트 초기화시 난수도 갱신!
             updatePreviewFilename(); 
             inputEl.focus(); 
         }
         
-        // 접두어 설정이 바뀔 때 호출되는 함수
         function updatePrefixSetting() {
             const inputEl = document.getElementById('prefix-input');
-            currentPrefix = inputEl.value.toUpperCase(); // 항상 대문자로 강제 변환
-            localStorage.setItem('nfs_dg_prefix', currentPrefix); // 로컬에 찰떡같이 저장!
-            document.getElementById('quick-prefix-display').innerText = currentPrefix; // 버튼 텍스트도 동기화
+            currentPrefix = inputEl.value.toUpperCase(); 
+            localStorage.setItem('nfs_dg_prefix', currentPrefix); 
+            document.getElementById('quick-prefix-display').innerText = currentPrefix; 
         }
 
-        // '빠른 입력' 버튼 클릭 시 똑똑하게 앞부분만 바꿔치기
         function addPrefixText() {
             const inputEl = document.getElementById('current-barcode-input');
             let currentVal = inputEl.value;
@@ -339,7 +343,6 @@
             if (currentVal === "미입력" || currentVal === "") {
                 inputEl.value = currentPrefix;
             } else if (!currentVal.startsWith(currentPrefix)) {
-                // 기존 값에서 숫자만 쏙 뽑아내서 새 접두어 뒤에 붙여주는 센스!
                 let numbersOnly = currentVal.replace(/[^0-9]/g, '');
                 inputEl.value = currentPrefix + numbersOnly;
             }
@@ -347,7 +350,8 @@
         }
 
         function updatePreviewFilename() {
-            document.getElementById('preview-filename').innerText = `${currentBarcodeText}_${String(photoCounter).padStart(3, '0')}.jpg`;
+            // 파일명 규칙: {바코드}_{일련번호}_{6자리난수}.jpg
+            document.getElementById('preview-filename').innerText = `${currentBarcodeText}_${String(photoCounter).padStart(3, '0')}_${currentRandomKey}.jpg`;
         }
 
         function takePhoto() {
@@ -382,9 +386,14 @@
             document.getElementById('last-photo-thumb').src = dataUrl;
             document.getElementById('photo-count-badge').innerText = photoCounter;
 
-            const fileName = `${currentBarcodeText}_${String(photoCounter).padStart(3, '0')}.jpg`;
+            // 저장 시 미리보기에 띄워둔 파일명(난수 포함)과 동일하게 다운로드!
+            const fileName = `${currentBarcodeText}_${String(photoCounter).padStart(3, '0')}_${currentRandomKey}.jpg`;
             downloadImage(dataUrl, fileName);
-            photoCounter++; updatePreviewFilename();
+            
+            // 사진 찍은 후 다음 사진을 위해 카운터 올리고 난수 새로 생성
+            photoCounter++; 
+            currentRandomKey = generateRandomKey();
+            updatePreviewFilename();
         }
 
         function downloadImage(dataUrl, filename) {
@@ -399,8 +408,11 @@
             document.getElementById('thumbnail-container').classList.add('hidden');
             document.getElementById('scanner-status').innerText = "카메라를 켜고 바코드를 비춰주세요.";
             
-            scanBuffer = []; // 버퍼 찌꺼기 청소!
-            currentBarcodeText = ""; photoCounter = 1; isScannerActive = false;
+            scanBuffer = []; 
+            currentBarcodeText = ""; 
+            photoCounter = 1; 
+            isScannerActive = false;
+            currentRandomKey = generateRandomKey(); // 스캐너로 돌아가면 난수 초기화!
             
             setTimeout(() => { startBarcodeScanner(); }, 300);
         }
