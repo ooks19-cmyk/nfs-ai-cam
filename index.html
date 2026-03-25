@@ -42,6 +42,12 @@
                 </button>
             </div>
             
+            <!-- 새로 추가된 접두어 설정 영역 -->
+            <div class="bg-indigo-50 px-3 py-2 border-b border-indigo-100 flex items-center justify-between text-sm shrink-0 z-10">
+                <label for="prefix-input" class="text-indigo-800 font-bold mr-2 whitespace-nowrap"><i class="fas fa-tag mr-1"></i>기본 접두어</label>
+                <input type="text" id="prefix-input" class="w-32 bg-white border border-indigo-200 rounded px-2 py-1 text-indigo-900 font-mono text-center outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all uppercase shadow-inner" value="2026-D-" oninput="updatePrefixSetting()">
+            </div>
+            
             <div class="w-full shrink-0 bg-black relative flex items-center justify-center overflow-hidden" style="height: 50vh;" onclick="manualRefocus(this)">
                 <div id="reader" class="w-full h-full"></div>
             </div>
@@ -70,8 +76,8 @@
                             <i class="fas fa-times-circle text-lg"></i>
                         </button>
                     </div>
-                    <button onclick="addPrefixText('2026-D-')" class="bg-green-800 hover:bg-green-900 text-green-100 text-[10px] py-1 px-3 rounded-full border border-green-500 shadow-sm transition flex items-center">
-                        <i class="fas fa-keyboard mr-1.5"></i> '2026-D-' 빠른 입력
+                    <button onclick="addPrefixText()" class="bg-green-800 hover:bg-green-900 text-green-100 text-[10px] py-1 px-3 rounded-full border border-green-500 shadow-sm transition flex items-center">
+                        <i class="fas fa-keyboard mr-1.5"></i> '<span id="quick-prefix-display">2026-D-</span>' 빠른 입력
                     </button>
                 </div>
             </div>
@@ -104,8 +110,18 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(err => console.error(err)); });
         }
-        window.addEventListener('load', () => { setTimeout(() => { startBarcodeScanner(); }, 300); });
+        window.addEventListener('load', () => { 
+            // 저장된 접두어 불러오기
+            const savedPrefix = localStorage.getItem('nfs_dg_prefix');
+            if (savedPrefix !== null) {
+                currentPrefix = savedPrefix;
+                document.getElementById('prefix-input').value = currentPrefix;
+                document.getElementById('quick-prefix-display').innerText = currentPrefix;
+            }
+            setTimeout(() => { startBarcodeScanner(); }, 300); 
+        });
 
+        let currentPrefix = "2026-D-"; // 커스텀 가능한 기본 접두어 변수
         let html5QrCode = null; let currentBarcodeText = ""; let photoCounter = 1; 
         let cameraStream = null; let isScannerActive = false;
         
@@ -236,8 +252,8 @@
                 .replace(/[S]/g, '5')
                 .replace(/[B]/g, '8');
 
-            // 4. 강제로 우리만의 포맷 껍데기를 씌움
-            let finalBarcode = "2026-D-" + pureNumbers;
+            // 4. 강제로 우리만의 포맷 껍데기를 씌움 (커스텀 접두어 반영!)
+            let finalBarcode = currentPrefix + pureNumbers;
 
             // 5. 다수결 AI 발동! (Ensemble Voting)
             scanBuffer.push(finalBarcode);
@@ -307,10 +323,26 @@
             inputEl.focus(); 
         }
         
-        function addPrefixText(text) {
+        // 접두어 설정이 바뀔 때 호출되는 함수
+        function updatePrefixSetting() {
+            const inputEl = document.getElementById('prefix-input');
+            currentPrefix = inputEl.value.toUpperCase(); // 항상 대문자로 강제 변환
+            localStorage.setItem('nfs_dg_prefix', currentPrefix); // 로컬에 찰떡같이 저장!
+            document.getElementById('quick-prefix-display').innerText = currentPrefix; // 버튼 텍스트도 동기화
+        }
+
+        // '빠른 입력' 버튼 클릭 시 똑똑하게 앞부분만 바꿔치기
+        function addPrefixText() {
             const inputEl = document.getElementById('current-barcode-input');
-            if (inputEl.value === "미입력" || inputEl.value === "") inputEl.value = text;
-            else if (!inputEl.value.startsWith(text)) inputEl.value = text + inputEl.value;
+            let currentVal = inputEl.value;
+            
+            if (currentVal === "미입력" || currentVal === "") {
+                inputEl.value = currentPrefix;
+            } else if (!currentVal.startsWith(currentPrefix)) {
+                // 기존 값에서 숫자만 쏙 뽑아내서 새 접두어 뒤에 붙여주는 센스!
+                let numbersOnly = currentVal.replace(/[^0-9]/g, '');
+                inputEl.value = currentPrefix + numbersOnly;
+            }
             updateBarcodeFromInput(); inputEl.focus();
         }
 
