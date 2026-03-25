@@ -1,0 +1,16 @@
+{
+  "name": "NFS_DG 스마트 스캐너",
+  "short_name": "NFS_DG",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1e293b",
+  "theme_color": "#1e293b",
+  "description": "오프라인 작동을 지원하는 스마트 재고 실사 카메라",
+  "icons": [
+    {
+      "src": "./logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
